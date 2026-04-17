@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Portfolio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #0d0d0d; --cream: #f5f0e8; --accent: #c8602a;
+      --gold: #d4a853; --muted: #6b6560;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); }
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 4rem 2rem; }
+    .page-header { margin-bottom: 3rem; }
+    .back-link { color: var(--accent); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 1.5rem; }
+    .page-title { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 700; }
+    .page-subtitle { color: var(--muted); margin-top: 0.5rem; }
+
+    .form-section {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .form-section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--cream);
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .form-section-title .icon { font-size: 1.1rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 0.82rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+    input, textarea, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--cream);
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      color: var(--ink);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(200,96,42,0.12);
+      background: white;
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* File upload */
+    .file-upload-area {
+      border: 2px dashed rgba(0,0,0,0.15);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--cream);
+    }
+    .file-upload-area:hover { border-color: var(--accent); background: rgba(200,96,42,0.04); }
+    .file-upload-area input[type=file] { display: none; }
+    .file-upload-area .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .file-upload-area p { font-size: 0.875rem; color: var(--muted); }
+    .file-upload-area strong { color: var(--accent); cursor: pointer; }
+    .file-preview { display: none; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #e8f5e9; border-radius: 8px; margin-top: 0.75rem; font-size: 0.875rem; color: #2e7d32; }
+    .current-file { background: rgba(200,96,42,0.08); border: 1px solid rgba(200,96,42,0.2); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; color: var(--accent); margin-top: 0.5rem; }
+
+    .form-actions {
+      display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;
+    }
+    .btn {
+      padding: 0.85rem 2rem; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500;
+      cursor: pointer; border: none; transition: all 0.2s; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #a84f22; transform: translateY(-2px); }
+    .btn-secondary { background: white; color: var(--ink); border: 1.5px solid rgba(0,0,0,0.15); }
+    .btn-secondary:hover { background: var(--cream); }
+
+    .error-msg { background: #fff3f0; border: 1px solid #ffb3a0; color: #c0392b; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .page-wrap { padding: 2rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="/" class="back-link">← Back to Portfolio</a>
+    <h1 class="page-title">Edit Portfolio</h1>
+    <p class="page-subtitle">Fill in your details — they'll appear instantly on your portfolio.</p>
+  </div>
+
+  <div th:if="${error}" class="error-msg" th:text="${error}">Error message</div>
+
+  <form action="/save" method="post" enctype="multipart/form-data">
+    <input type="hidden" th:field="*{id}" th:object="${portfolio}"/>
+
+    <!-- PERSONAL INFO -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">👤</span> Personal Information</div>
+      <div class="form-grid" th:object="${portfolio}">
+        <div class="form-group">
+          <label for="fullName">Full Name *</label>
+          <input type="text" id="fullName" name="fullName" th:value="*{fullName}" placeholder="e.g. Arjun Sharma" required/>
+        </div>
+        <div class="form-group">
+          <label for="jobTitle">Job Title / Tagline</label>
+          <input type="text" id="jobTitle" name="jobTitle" th:value="*{jobTitle}" placeholder="e.g. Full Stack Developer"/>
+        </div>
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" th:value="*{email}" placeholder="you@email.com" required/>
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" name="phone" th:value="*{phone}" placeholder="+91 98765 43210"/>
+        </div>
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="location" th:value="*{location}" placeholder="e.g. Bengaluru, Karnataka"/>
+        </div>
+        <div class="form-group">
+          <label for="linkedinUrl">LinkedIn URL</label>
+          <input type="url" id="linkedinUrl" name="linkedinUrl" th:value="*{linkedinUrl}" placeholder="https://linkedin.com/in/yourname"/>
+        </div>
+        <div class="form-group">
+          <label for="githubUrl">GitHub URL</label>
+          <input type="url" id="githubUrl" name="githubUrl" th:value="*{githubUrl}" placeholder="https://github.com/yourname"/>
+        </div>
+        <div class="form-group">
+          <label for="portfolioUrl">Portfolio/Website URL</label>
+          <input type="url" id="portfolioUrl" name="portfolioUrl" th:value="*{portfolioUrl}" placeholder="https://yourwebsite.com"/>
+        </div>
+        <div class="form-group full">
+          <label for="bio">Bio / About Me</label>
+          <textarea id="bio" name="bio" th:text="*{bio}" placeholder="Write 2-3 lines about yourself, your interests and goals..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDUCATION -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">🎓</span> Education</div>
+      <div class="form-grid" th:object="${portfolio}">
+        <div class="form-group">
+          <label for="collegeName">College / University *</label>
+          <input type="text" id="collegeName" name="collegeName" th:value="*{collegeName}" placeholder="e.g. IIT Bombay" required/>
+        </div>
+        <div class="form-group">
+          <label for="degree">Degree</label>
+          <input type="text" id="degree" name="degree" th:value="*{degree}" placeholder="e.g. B.Tech / M.Tech / BCA"/>
+        </div>
+        <div class="form-group">
+          <label for="branch">Branch / Specialization</label>
+          <input type="text" id="branch" name="branch" th:value="*{branch}" placeholder="e.g. Computer Science & Engineering"/>
+        </div>
+        <div class="form-group">
+          <label for="cgpa">CGPA (out of 10)</label>
+          <input type="number" id="cgpa" name="cgpa" th:value="*{cgpa}" step="0.01" min="0" max="10" placeholder="e.g. 8.75"/>
+        </div>
+        <div class="form-group">
+          <label for="graduationYear">Graduation Year</label>
+          <input type="number" id="graduationYear" name="graduationYear" th:value="*{graduationYear}" placeholder="e.g. 2025"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKILLS -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">⚡</span> Skills</div>
+      <div th:object="${portfolio}">
+        <div class="form-group">
+          <label for="skills">Skills (comma-separated)</label>
+          <textarea id="skills" name="skills" th:text="*{skills}" placeholder="Java, Spring Boot, React, Python, SQL, Docker, Kubernetes, AWS, Git, Jenkins, Maven"></textarea>
+          <div class="hint">Separate each skill with a comma. They'll appear as clickable tags.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">🛠️</span> Projects</div>
+      <div th:object="${portfolio}">
+        <div class="form-group">
+          <label for="projects">Projects (one per line)</label>
+          <textarea id="projects" name="projects" th:text="*{projects}" style="min-height: 150px;" placeholder="Project Name | Short description&#10;E-Commerce App | Built with Spring Boot and React&#10;Portfolio Website | Java, Maven, Jenkins CI/CD"></textarea>
+          <div class="hint">Format: <strong>Project Name | Description</strong>. One project per line.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CERTIFICATIONS & ACHIEVEMENTS -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">🏆</span> Certifications & Achievements</div>
+      <div class="form-grid" th:object="${portfolio}">
+        <div class="form-group full">
+          <label for="certifications">Certifications (one per line)</label>
+          <textarea id="certifications" name="certifications" th:text="*{certifications}" placeholder="AWS Certified Developer&#10;Oracle Java SE 11 Certified&#10;Google Cloud Associate"></textarea>
+        </div>
+        <div class="form-group full">
+          <label for="achievements">Achievements (one per line)</label>
+          <textarea id="achievements" name="achievements" th:text="*{achievements}" placeholder="1st Place in National Hackathon 2024&#10;Smart India Hackathon Finalist&#10;Published research paper in IEEE"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES -->
+    <div class="form-section">
+      <div class="form-section-title"><span class="icon">📎</span> Upload Files</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Profile Photo</label>
+          <div class="file-upload-area" onclick="document.getElementById('photoFile').click()">
+            <input type="file" id="photoFile" name="photoFile" accept="image/*" onchange="previewFile(this, 'photoPreview', 'photoName')"/>
+            <div class="upload-icon">🖼️</div>
+            <p>Click to upload your photo<br><strong>Browse files</strong></p>
+            <small style="color: var(--muted); font-size: 0.75rem;">JPG, PNG, WEBP — max 5MB</small>
+          </div>
+          <div id="photoPreview" class="file-preview">
+            <span>✅</span> <span id="photoName"></span>
+          </div>
+          <div th:if="${portfolio.photoPath != null}" class="current-file">
+            📸 Current photo: <span th:text="${portfolio.photoPath}"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Resume (PDF)</label>
+          <div class="file-upload-area" onclick="document.getElementById('resumeFile').click()">
+            <input type="file" id="resumeFile" name="resumeFile" accept=".pdf,.doc,.docx" onchange="previewFile(this, 'resumePreview', 'resumeName')"/>
+            <div class="upload-icon">📄</div>
+            <p>Click to upload your resume<br><strong>Browse files</strong></p>
+            <small style="color: var(--muted); font-size: 0.75rem;">PDF, DOC, DOCX — max 10MB</small>
+          </div>
+          <div id="resumePreview" class="file-preview">
+            <span>✅</span> <span id="resumeName"></span>
+          </div>
+          <div th:if="${portfolio.resumePath != null}" class="current-file">
+            📋 Current resume: <span th:text="${portfolio.resumePath}"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="/" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Portfolio
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function previewFile(input, previewId, nameId) {
+    const preview = document.getElementById(previewId);
+    const nameEl  = document.getElementById(nameId);
+    if (input.files && input.files[0]) {
+      nameEl.textContent = input.files[0].name;
+      preview.style.display = 'flex';
+    }
+  }
+</script>
+</body>
+</html>
