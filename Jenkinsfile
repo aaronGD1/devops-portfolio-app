@@ -2,12 +2,10 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME        = 'portfolio-app'
-        APP_VERSION     = '1.0.0'
-        JAVA_HOME       = '/usr/lib/jvm/java-17-openjdk'
-        MAVEN_HOME      = '/usr/share/maven'
-        DEPLOY_PORT     = '8080'
-        JAR_FILE        = "target/${APP_NAME}-${APP_VERSION}.jar"
+        APP_NAME    = 'portfolio-app'
+        APP_VERSION = '1.0.0'
+        DEPLOY_PORT = '8081'
+        JAR_FILE    = "target\\${APP_NAME}-${APP_VERSION}.jar"
     }
 
     tools {
@@ -27,89 +25,50 @@ pipeline {
             steps {
                 echo "Checking out source code from Git..."
                 checkout scm
-                echo "Branch: ${env.GIT_BRANCH}"
-                echo "Commit: ${env.GIT_COMMIT}"
             }
         }
 
         stage('🔍 Code Quality Check') {
             steps {
-                echo "Validating Maven project structure..."
-                sh 'mvn validate'
+                echo "Validating Maven project..."
+                bat 'mvn validate'
             }
         }
 
         stage('📦 Build') {
             steps {
-                echo "Compiling source code with Maven..."
-                sh 'mvn clean compile -DskipTests'
-            }
-            post {
-                success { echo "✅ Build successful!" }
-                failure { echo "❌ Build failed!" }
+                echo "Compiling project..."
+                bat 'mvn clean compile -DskipTests'
             }
         }
 
         stage('🧪 Unit Tests') {
             steps {
-                echo "Running unit tests..."
-                sh 'mvn test'
-            }
-            post {
-                always {
-                    junit testResults: 'target/surefire-reports/*.xml',
-                          allowEmptyResults: true
-                    echo "Test reports published."
-                }
-                success { echo "✅ All tests passed!" }
-                failure { echo "❌ Tests failed! Check reports." }
+                echo "Running tests..."
+                bat 'mvn test'
             }
         }
 
         stage('📊 Package') {
             steps {
-                echo "Packaging application as JAR..."
-                sh 'mvn package -DskipTests'
+                echo "Packaging application..."
+                bat 'mvn package -DskipTests'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                echo "Artifact archived: ${JAR_FILE}"
             }
         }
 
         stage('🚀 Deploy') {
-            when {
-                branch 'main'
-            }
             steps {
-                echo "Deploying ${APP_NAME} v${APP_VERSION} to server..."
-                sh '''
-                    # Stop existing instance if running
-                    PID=$(lsof -t -i:8080 || true)
-                    if [ -n "$PID" ]; then
-                        echo "Stopping existing process on port 8080 (PID: $PID)"
-                        kill -9 $PID || true
-                        sleep 3
-                    fi
+                echo "Deploying application on port 8081..."
 
-                    # Start new instance
-                    echo "Starting new instance..."
-                    nohup java -jar target/*.jar \
-                        --server.port=8080 \
-                        --spring.profiles.active=prod \
-                        > app.log 2>&1 &
+                bat '''
+                echo Killing existing app if running on 8081...
+                for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8081') do taskkill /PID %%a /F
 
-                    echo "Application started. PID: $!"
+                echo Starting app...
+                start cmd /c "java -jar target\\*.jar --server.port=8081"
 
-                    # Wait for app to start
-                    echo "Waiting for application to become ready..."
-                    for i in $(seq 1 30); do
-                        if curl -sf http://localhost:8080/api/portfolio > /dev/null 2>&1; then
-                            echo "✅ Application is up and running on port 8080!"
-                            exit 0
-                        fi
-                        echo "  Attempt $i/30 — waiting..."
-                        sleep 3
-                    done
-                    echo "⚠️  Application may not have started correctly. Check app.log"
+                echo App started on port 8081
                 '''
             }
         }
@@ -118,21 +77,13 @@ pipeline {
     post {
         always {
             echo "Pipeline completed for ${APP_NAME}"
-            cleanWs(cleanWhenNotBuilt: false,
-                    deleteDirs: true,
-                    disableDeferredWipeout: true,
-                    notFailBuild: true,
-                    patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
-                                [pattern: 'target/', type: 'EXCLUDE']])
+            cleanWs()
         }
         success {
-            echo "🎉 Pipeline SUCCESS — ${APP_NAME} v${APP_VERSION} deployed!"
+            echo "🎉 SUCCESS — Application deployed on port 8081!"
         }
         failure {
-            echo "🔥 Pipeline FAILED — Check logs above for details."
-        }
-        unstable {
-            echo "⚠️  Pipeline UNSTABLE — Tests may have failed."
+            echo "🔥 FAILED — Check logs above"
         }
     }
 }
