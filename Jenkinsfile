@@ -5,7 +5,6 @@ pipeline {
         APP_NAME    = 'portfolio-app'
         APP_VERSION = '1.0.0'
         DEPLOY_PORT = '8081'
-        JAR_NAME    = 'portfolio-app-1.0.0.jar'   // ← exact jar name, no wildcard
     }
 
     tools {
@@ -63,7 +62,7 @@ pipeline {
             steps {
                 echo "Deploying on port ${DEPLOY_PORT}..."
 
-                // Step 1: Kill whatever is already on port 8081 (ignore errors if nothing running)
+                // Step 1: Kill anything already on port 8081
                 bat '''
                     echo Stopping any existing process on port %DEPLOY_PORT%...
                     for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%DEPLOY_PORT% " ^| findstr LISTENING') do (
@@ -73,8 +72,7 @@ pipeline {
                     echo Port cleared.
                 '''
 
-                // Step 2: Resolve exact JAR path and write a launcher .bat file
-                // Using a .bat launcher avoids wildcard issues entirely
+                // Step 2: Resolve exact JAR name, write launcher.bat
                 bat '''
                     echo Resolving JAR file...
                     for %%f in (target\\*.jar) do set JARFILE=%%f
@@ -84,24 +82,28 @@ pipeline {
                     type launcher.bat
                 '''
 
-                // Step 3: Launch the app detached so Jenkins stage doesn't block
+                // Step 3: Launch detached
+                // IMPORTANT: Use "ping -n 31 127.0.0.1" instead of "timeout /t 30"
+                // because Jenkins redirects stdin and Windows timeout.exe crashes on redirected stdin.
+                // ping -n 31 sends 31 ICMP packets 1 second apart = ~30 second wait, no stdin needed.
                 bat '''
                     echo Starting Spring Boot app...
                     start "portfolio-app" /B cmd /c "launcher.bat > app.log 2>&1"
-                    echo App launched. Waiting 15 seconds for startup...
-                    timeout /t 15 /nobreak
+                    echo App process launched. Waiting 30 seconds for startup...
+                    ping -n 31 127.0.0.1 > nul
+                    echo Done waiting.
                 '''
 
-                // Step 4: Verify the app is actually up
+                // Step 4: Verify app is up using PowerShell (more reliable than curl on Windows)
                 bat '''
                     echo Verifying app is running on port %DEPLOY_PORT%...
-                    curl -f http://localhost:%DEPLOY_PORT%/api/portfolio
+                    powershell -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:%DEPLOY_PORT%/' -UseBasicParsing -TimeoutSec 10; Write-Host 'HTTP Status:' $r.StatusCode; exit 0 } catch { Write-Host 'App not responding:' $_.Exception.Message; exit 1 }"
                     if %ERRORLEVEL% NEQ 0 (
-                        echo ERROR: App did not start correctly. Last 30 lines of log:
-                        powershell -Command "Get-Content app.log -Tail 30"
+                        echo ERROR: App did not respond. Last 40 lines of app.log:
+                        powershell -Command "Get-Content app.log -Tail 40"
                         exit /b 1
                     )
-                    echo SUCCESS: App is live at http://localhost:%DEPLOY_PORT%
+                    echo SUCCESS: Portfolio app is live at http://localhost:%DEPLOY_PORT%
                 '''
             }
         }
@@ -109,13 +111,13 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline completed for ${APP_NAME} v${APP_VERSION}"
+            echo "Pipeline finished for ${APP_NAME} v${APP_VERSION}"
         }
         success {
             echo "🎉 SUCCESS — Portfolio live at http://localhost:${DEPLOY_PORT}"
         }
         failure {
-            echo "❌ FAILED — Printing app.log for diagnosis:"
+            echo "❌ FAILED — printing app.log:"
             bat 'powershell -Command "if (Test-Path app.log) { Get-Content app.log -Tail 50 }"'
         }
     }
