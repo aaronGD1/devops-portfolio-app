@@ -5,7 +5,6 @@ pipeline {
         APP_NAME    = 'portfolio-app'
         APP_VERSION = '1.0.0'
         DEPLOY_PORT = '8081'
-        JAR_FILE    = "target\\${APP_NAME}-${APP_VERSION}.jar"
     }
 
     tools {
@@ -23,37 +22,33 @@ pipeline {
 
         stage('📥 Checkout') {
             steps {
-                echo "Checking out source code from Git..."
+                echo "Checking out code..."
                 checkout scm
             }
         }
 
-        stage('🔍 Code Quality Check') {
+        stage('🔍 Validate') {
             steps {
-                echo "Validating Maven project..."
                 bat 'mvn validate'
             }
         }
 
         stage('📦 Build') {
             steps {
-                echo "Compiling project..."
                 bat 'mvn clean compile -DskipTests'
             }
         }
 
-        stage('🧪 Unit Tests') {
+        stage('🧪 Test') {
             steps {
-                echo "Running tests..."
                 bat 'mvn test'
             }
         }
 
         stage('📊 Package') {
             steps {
-                echo "Packaging application..."
                 bat 'mvn package -DskipTests'
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                archiveArtifacts artifacts: 'target/*.jar'
             }
         }
 
@@ -62,13 +57,11 @@ pipeline {
                 echo "Deploying application on port 8081..."
 
                 bat '''
-                echo Killing existing app if running on 8081...
+                echo Killing existing app on port 8081...
                 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8081') do taskkill /PID %%a /F
 
-                echo Starting app...
-                start cmd /c "java -jar target\\*.jar --server.port=8081"
-
-                echo App started on port 8081
+                echo Starting application...
+                start cmd /k "java -jar target\\*.jar --server.port=8081"
                 '''
             }
         }
@@ -76,14 +69,13 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline completed for ${APP_NAME}"
-            cleanWs()
+            echo "Pipeline completed"
         }
         success {
-            echo "🎉 SUCCESS — Application deployed on port 8081!"
+            echo "🎉 SUCCESS — App deployed on port 8081!"
         }
         failure {
-            echo "🔥 FAILED — Check logs above"
+            echo "❌ FAILED — Check logs"
         }
     }
 }
